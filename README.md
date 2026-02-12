@@ -4,6 +4,8 @@ A Chrome extension for capturing and highlighting web content, formatted for Obs
 
 ![Popup](screenshots/01-popup.png)
 
+![Edit Selection](screenshots/02-edit-selection.png)
+
 ## Features
 
 - **Remove Mode**: Start with all content selected, click to exclude elements
