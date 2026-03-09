@@ -26,7 +26,7 @@ Each platform is handled by a dedicated extractor — LinkedIn posts preserve au
 ### Popup
 
 <p align="center">
-  <img src="screenshots/01-popup.png" alt="Extension popup" width="280" />
+  <img src="screenshots/popup-main.png" alt="Extension popup" width="280" />
 </p>
 
 ### Edit Selection Mode
