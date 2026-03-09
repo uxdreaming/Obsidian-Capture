@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="screenshots/01-popup.png" alt="Obsidian Capture" width="320" />
+  <img src="screenshots/cover.png" alt="Obsidian Capture" width="100%" />
 </p>
 
 <h1 align="center">Obsidian Capture</h1>
@@ -26,7 +26,7 @@ Each platform is handled by a dedicated extractor — LinkedIn posts preserve au
 ### Popup
 
 <p align="center">
-  <img src="screenshots/01-popup.png" alt="Extension popup" width="320" />
+  <img src="screenshots/01-popup.png" alt="Extension popup" width="280" />
 </p>
 
 ### Edit Selection Mode
