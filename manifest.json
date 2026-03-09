@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Obsidian Web Clipper",
-  "version": "1.0.0",
-  "description": "Capture and highlight web content for Obsidian with smart selection and export options",
+  "name": "Obsidian Capture",
+  "version": "1.1.0",
+  "description": "Capture any web content — LinkedIn, GitHub, Medium, X and more — directly into your Obsidian vault.",
   "permissions": [
     "activeTab",
     "storage",

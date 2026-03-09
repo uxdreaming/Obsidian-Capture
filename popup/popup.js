@@ -1,6 +1,18 @@
 // Obsidian Web Clipper - Popup
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // Check for pending save from Edit Selection mode
+  const { pendingSave } = await chrome.storage.session.get('pendingSave');
+  if (pendingSave) {
+    await chrome.storage.session.remove('pendingSave');
+    const saved = await saveToVault(pendingSave.filename, pendingSave.content);
+    if (saved) {
+      document.body.innerHTML = '<div style="padding:16px;font-family:system-ui;font-size:14px;color:#4caf50">✓ Saved to vault</div>';
+      setTimeout(() => window.close(), 1200);
+      return;
+    }
+  }
+
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const url = tab.url || '';
 
@@ -42,18 +54,28 @@ function showMainView(tab, url) {
   const pageTypeEl = document.getElementById('pageType');
   let pageType = 'article';
 
-  if (url.includes('youtube.com/watch')) {
-    pageType = 'youtube';
-    pageTypeEl.textContent = 'YouTube video detected';
-  } else if (url.includes('spotify.com')) {
-    pageType = 'spotify';
-    pageTypeEl.textContent = 'Spotify detected';
-  } else if (url.includes('twitter.com') || url.includes('x.com')) {
-    pageType = 'twitter';
-    pageTypeEl.textContent = 'Twitter/X detected';
-  } else {
-    pageTypeEl.textContent = '';
+  const siteMap = [
+    { match: ['youtube.com/watch'],                  type: 'youtube',  label: 'YouTube video' },
+    { match: ['spotify.com'],                        type: 'spotify',  label: 'Spotify' },
+    { match: ['twitter.com', 'x.com'],               type: 'twitter',  label: 'Twitter / X' },
+    { match: ['linkedin.com/in/', 'linkedin.com/posts/', 'linkedin.com/pulse/',
+               'linkedin.com/feed/', 'linkedin.com/jobs/', 'linkedin.com/company/'],
+                                                     type: 'linkedin', label: 'LinkedIn' },
+    { match: ['github.com'],                         type: 'github',   label: 'GitHub' },
+    { match: ['behance.net'],                        type: 'behance',  label: 'Behance' },
+    { match: ['facebook.com'],                       type: 'facebook', label: 'Facebook' },
+    { match: ['medium.com', '.medium.com'],          type: 'medium',   label: 'Medium' },
+    { match: ['dribbble.com'],                       type: 'dribbble', label: 'Dribbble' },
+  ];
+
+  for (const site of siteMap) {
+    if (site.match.some(m => url.includes(m))) {
+      pageType = site.type;
+      pageTypeEl.textContent = `${site.label} detected`;
+      break;
+    }
   }
+  if (pageType === 'article') pageTypeEl.textContent = '';
 
   // Capture button
   document.getElementById('captureBtn').addEventListener('click', async () => {
@@ -87,7 +109,7 @@ async function injectAndStart(tabId, action, pageType = null) {
 
   await chrome.scripting.executeScript({
     target: { tabId },
-    files: ['content/content.js']
+    files: ['lib/turndown.min.js', 'content/content.js']
   });
 
   await new Promise(r => setTimeout(r, 100));
@@ -97,7 +119,7 @@ async function injectAndStart(tabId, action, pageType = null) {
 async function injectAndExtract(tabId, action, pageType = null) {
   await chrome.scripting.executeScript({
     target: { tabId },
-    files: ['content/content.js']
+    files: ['lib/turndown.min.js', 'content/content.js']
   });
 
   await new Promise(r => setTimeout(r, 100));
