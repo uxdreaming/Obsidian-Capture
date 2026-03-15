@@ -219,6 +219,4 @@ MIT
 
 ---
 
-<p align="center">
-  <sub>Built with 💜 by <a href="https://github.com/uxdreaming">uxdreaming</a></sub>
-</p>
+*Maintained by [uxdreaming](https://github.com/uxdreaming)*
