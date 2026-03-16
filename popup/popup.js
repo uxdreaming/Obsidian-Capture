@@ -230,6 +230,7 @@ async function captureYouTube(data) {
 }
 
 async function getGroqSummary(text, title, apiKey) {
+  console.log('[Obsidian Capture] Calling Groq for summary, input length:', text?.length);
   try {
     const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -253,8 +254,11 @@ async function getGroqSummary(text, title, apiKey) {
       }),
     });
     const json = await resp.json();
-    return json.choices?.[0]?.message?.content?.trim() || null;
-  } catch {
+    const result = json.choices?.[0]?.message?.content?.trim() || null;
+    console.log('[Obsidian Capture] Groq summary result:', result ? 'OK' : 'empty', json.error || '');
+    return result;
+  } catch (err) {
+    console.error('[Obsidian Capture] Groq error:', err);
     return null;
   }
 }
@@ -268,12 +272,9 @@ function buildYouTubeNote(data, summary) {
     `source: ${data.url}`,
     `date: ${date}`,
     `type: youtube`,
-    data.channel    ? `channel: "${data.channel}"` : null,
-    data.duration   ? `duration: "${data.duration}"` : null,
-    data.views      ? `views: "${data.views}"` : null,
     `tags: [youtube, video]`,
     '---',
-  ].filter(Boolean);
+  ];
 
   const channelLink = data.channelUrl
     ? `[${data.channel}](${data.channelUrl})`

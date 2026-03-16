@@ -712,7 +712,14 @@ async function extractYouTube() {
     || '';
   const channelUrl = document.querySelector('#channel-name yt-formatted-string a, ytd-channel-name yt-formatted-string a')?.href || '';
 
-  const duration    = ytFormatDuration(videoDetails.lengthSeconds);
+  // El elemento <video> es la fuente más confiable para la duración
+  const videoEl     = document.querySelector('video');
+  const durationSec = (videoEl?.duration && isFinite(videoEl.duration))
+    ? Math.round(videoEl.duration)
+    : parseInt(videoDetails.lengthSeconds) || 0;
+  const duration    = durationSec > 0
+    ? ytFormatDuration(durationSec)
+    : document.querySelector('.ytp-time-duration')?.textContent?.trim() || '';
   const views       = ytFormatViews(videoDetails.viewCount);
   const description = videoDetails.shortDescription
     || document.querySelector('#description-inline-expander yt-formatted-string, ytd-text-inline-expander yt-formatted-string')?.textContent?.trim()
