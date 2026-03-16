@@ -218,12 +218,24 @@ async function checkVaultConfigured() {
 // ── YouTube capture ───────────────────────────────────────────────────────────
 
 async function captureYouTube(data) {
-  const { groqApiKey } = await chrome.storage.sync.get('groqApiKey');
+  // Intentar sync primero, luego local (por si el usuario no tiene Chrome sync activo)
+  let { groqApiKey } = await chrome.storage.sync.get('groqApiKey');
+  if (!groqApiKey) {
+    const local = await chrome.storage.local.get('groqApiKey');
+    groqApiKey = local.groqApiKey;
+  }
+
+  console.log('[OC] groqApiKey present:', !!groqApiKey);
+  console.log('[OC] transcript length:', data.transcript?.length ?? 'null');
+  console.log('[OC] description length:', data.description?.length ?? 'empty');
 
   let summary = null;
   if (groqApiKey) {
     const input = data.transcript || data.description;
+    console.log('[OC] input for summary:', input ? `${input.length} chars` : 'EMPTY — skipping');
     if (input) summary = await getGroqSummary(input, data.title, groqApiKey);
+  } else {
+    console.warn('[OC] No Groq API key found — skipping summary');
   }
 
   return { filename: data.filename, content: buildYouTubeNote(data, summary) };

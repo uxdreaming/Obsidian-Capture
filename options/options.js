@@ -24,6 +24,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const key   = document.getElementById('groqApiKey').value.trim();
     const status = document.getElementById('groqStatus');
     await chrome.storage.sync.set({ groqApiKey: key });
+    await chrome.storage.local.set({ groqApiKey: key });
     status.textContent = key ? '✓ API key saved' : 'API key cleared';
     status.style.display = 'block';
     setTimeout(() => { status.style.display = 'none'; }, 2000);
