@@ -29,7 +29,10 @@
 
         <div class="setting-item">
           <label for="groqApiKey">Groq API Key</label>
-          <input type="password" id="groqApiKey" placeholder="gsk_..." autocomplete="off" />
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="password" id="groqApiKey" placeholder="gsk_..." autocomplete="off" style="flex:1" />
+            <button type="button" id="toggleGroqKey" title="Show/hide key" style="background:none;border:1px solid #ccc;border-radius:4px;padding:4px 8px;cursor:pointer;font-size:14px">👁</button>
+          </div>
           <button type="button" id="saveGroqKey" class="btn btn-primary">Save</button>
           <p class="help-text">
             Used to generate AI summaries when capturing YouTube videos.

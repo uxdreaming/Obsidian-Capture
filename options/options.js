@@ -19,6 +19,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   const { groqApiKey } = await chrome.storage.sync.get('groqApiKey');
   if (groqApiKey) document.getElementById('groqApiKey').value = groqApiKey;
 
+  // Toggle show/hide key
+  document.getElementById('toggleGroqKey').addEventListener('click', () => {
+    const input = document.getElementById('groqApiKey');
+    input.type = input.type === 'password' ? 'text' : 'password';
+  });
+
   // Save Groq API key
   document.getElementById('saveGroqKey').addEventListener('click', async () => {
     const key   = document.getElementById('groqApiKey').value.trim();
