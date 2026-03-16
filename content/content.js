@@ -648,23 +648,85 @@ function extractFacebook() {
 }
 
 // ============================================
+// YOUTUBE HELPERS
+// ============================================
+
+function ytFormatDuration(seconds) {
+  const s = parseInt(seconds) || 0;
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+  return `${m}:${String(sec).padStart(2,'0')}`;
+}
+
+function ytFormatViews(n) {
+  const num = parseInt(n) || 0;
+  if (num >= 1_000_000_000) return (num / 1_000_000_000).toFixed(1) + 'B';
+  if (num >= 1_000_000)     return (num / 1_000_000).toFixed(1) + 'M';
+  if (num >= 1_000)         return (num / 1_000).toFixed(1) + 'K';
+  return num.toLocaleString();
+}
+
+async function getYouTubeTranscript() {
+  try {
+    const tracks = window.ytInitialPlayerResponse
+      ?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+    if (!tracks?.length) return null;
+
+    const track = tracks.find(t => t.languageCode === 'es')
+      || tracks.find(t => t.languageCode === 'en')
+      || tracks[0];
+    if (!track?.baseUrl) return null;
+
+    const resp = await fetch(track.baseUrl + '&fmt=json3');
+    const data = await resp.json();
+    const text = data.events
+      ?.filter(e => e.segs)
+      ?.map(e => e.segs.map(s => s.utf8 || '').join(''))
+      ?.join(' ')
+      ?.replace(/\s+/g, ' ')
+      ?.trim();
+    return text || null;
+  } catch {
+    return null;
+  }
+}
+
+// ============================================
 // YOUTUBE EXTRACTOR
 // ============================================
 
-function extractYouTube() {
-  const title = document.querySelector('h1.ytd-video-primary-info-renderer yt-formatted-string, h1.ytd-watch-metadata yt-formatted-string, #title h1')?.textContent?.trim()
+async function extractYouTube() {
+  const playerResponse = window.ytInitialPlayerResponse || {};
+  const videoDetails   = playerResponse.videoDetails || {};
+  const url            = window.location.href;
+  const videoId        = new URL(url).searchParams.get('v') || videoDetails.videoId || '';
+
+  const title = videoDetails.title
+    || document.querySelector('h1.ytd-watch-metadata yt-formatted-string, #title h1')?.textContent?.trim()
     || document.title.replace(' - YouTube', '').trim();
 
-  const channel = document.querySelector('#channel-name yt-formatted-string a, ytd-channel-name yt-formatted-string a, #owner-name a')?.textContent?.trim() || '';
+  const channel    = videoDetails.author
+    || document.querySelector('#channel-name yt-formatted-string a, ytd-channel-name yt-formatted-string a')?.textContent?.trim()
+    || '';
+  const channelUrl = document.querySelector('#channel-name yt-formatted-string a, ytd-channel-name yt-formatted-string a')?.href || '';
 
-  const descriptionEl = document.querySelector('#description-inline-expander yt-formatted-string, ytd-text-inline-expander yt-formatted-string, #description yt-formatted-string');
-  const description = descriptionEl?.textContent?.trim() || '';
+  const duration    = ytFormatDuration(videoDetails.lengthSeconds);
+  const views       = ytFormatViews(videoDetails.viewCount);
+  const description = videoDetails.shortDescription
+    || document.querySelector('#description-inline-expander yt-formatted-string, ytd-text-inline-expander yt-formatted-string')?.textContent?.trim()
+    || '';
+  const publishDate = document.querySelector('#info-strings yt-formatted-string')?.textContent?.trim() || '';
+  const thumbnail   = videoId ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` : '';
+  const transcript  = await getYouTubeTranscript();
 
-  const url = window.location.href;
-  let content = `**Channel:** ${channel}\n\n**URL:** ${url}\n\n`;
-  if (description) content += `## Description\n\n${description}`;
-
-  return { title, content };
+  return {
+    isYouTube: true,
+    filename:  title.replace(/[\\/:*?"<>|]/g, '-').replace(/\s+/g, ' ').trim().substring(0, 100),
+    title, videoId, channel, channelUrl, duration, views,
+    description, publishDate, thumbnail, transcript, url,
+  };
 }
 
 // ============================================
@@ -840,11 +902,14 @@ function extractMedium() {
 // AUTO CAPTURE (router)
 // ============================================
 
-function autoCapture(pageType, returnContent = false) {
-  let data;
+async function autoCapture(pageType, returnContent = false) {
+  // YouTube returns raw data — popup.js handles formatting + AI summary
+  if (pageType === 'youtube') {
+    return await extractYouTube();
+  }
 
+  let data;
   switch (pageType) {
-    case 'youtube':   data = extractYouTube();   break;
     case 'twitter':   data = extractTwitter();   break;
     case 'spotify':   data = extractSpotify();   break;
     case 'linkedin':  data = extractLinkedIn();  break;
@@ -862,12 +927,10 @@ function autoCapture(pageType, returnContent = false) {
     .trim()
     .substring(0, 100);
 
-  // For generic articles add a title heading; site-specific extractors manage their own format
   const base = (pageType === 'article')
     ? generateMarkdownWithTitle(data.title, data.content)
     : data.content;
 
-  // Prepend #Capture tag to every note
   const markdown = `#Capture\n\n${base}`;
 
   if (returnContent) {
@@ -1157,12 +1220,10 @@ const selectionEditor = new SelectionEditor();
 // Listen for messages
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === 'autoCapture') {
-    const result = autoCapture(message.pageType, message.returnContent);
-    if (message.returnContent) {
-      sendResponse(result);
-    } else {
-      sendResponse({ success: true });
-    }
+    autoCapture(message.pageType, message.returnContent)
+      .then(result => sendResponse(result))
+      .catch(err => sendResponse({ error: err.message }));
+    return true; // keep channel open for async
   } else if (message.action === 'editSelection') {
     selectionEditor.start();
     sendResponse({ success: true });

@@ -80,12 +80,23 @@ function showMainView(tab, url) {
   // Capture button
   document.getElementById('captureBtn').addEventListener('click', async () => {
     const captureBtn = document.getElementById('captureBtn');
-    captureBtn.textContent = 'Capturing...';
     captureBtn.disabled = true;
 
     try {
-      const result = await injectAndExtract(tab.id, 'autoCapture', pageType);
-      if (result && result.content) {
+      let result;
+      if (pageType === 'youtube') {
+        captureBtn.textContent = 'Extracting...';
+        const raw = await injectAndExtract(tab.id, 'autoCapture', 'youtube');
+        if (raw?.isYouTube) {
+          captureBtn.textContent = 'Summarizing...';
+          result = await captureYouTube(raw);
+        }
+      } else {
+        captureBtn.textContent = 'Capturing...';
+        result = await injectAndExtract(tab.id, 'autoCapture', pageType);
+      }
+
+      if (result?.content) {
         await saveToVault(result.filename, result.content);
       }
     } catch (err) {
@@ -202,6 +213,95 @@ async function checkVaultConfigured() {
   } catch {
     return false;
   }
+}
+
+// ── YouTube capture ───────────────────────────────────────────────────────────
+
+async function captureYouTube(data) {
+  const { groqApiKey } = await chrome.storage.sync.get('groqApiKey');
+
+  let summary = null;
+  if (groqApiKey) {
+    const input = data.transcript || data.description;
+    if (input) summary = await getGroqSummary(input, data.title, groqApiKey);
+  }
+
+  return { filename: data.filename, content: buildYouTubeNote(data, summary) };
+}
+
+async function getGroqSummary(text, title, apiKey) {
+  try {
+    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        temperature: 0.3,
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a concise YouTube video summarizer. Given video content, produce:\n1. A 2-3 sentence overview\n2. 5-7 key points as bullet points\nFormat in markdown. Be specific and informative. Do not add titles or headers — just the overview paragraph followed by the bullet list.',
+          },
+          {
+            role: 'user',
+            content: `Video title: "${title}"\n\nContent:\n${text.substring(0, 6000)}`,
+          },
+        ],
+      }),
+    });
+    const json = await resp.json();
+    return json.choices?.[0]?.message?.content?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+function buildYouTubeNote(data, summary) {
+  const date = new Date().toISOString().split('T')[0];
+
+  const fmLines = [
+    '---',
+    `title: "${data.title.replace(/"/g, '\\"')}"`,
+    `source: ${data.url}`,
+    `date: ${date}`,
+    `type: youtube`,
+    data.channel    ? `channel: "${data.channel}"` : null,
+    data.duration   ? `duration: "${data.duration}"` : null,
+    data.views      ? `views: "${data.views}"` : null,
+    `tags: [youtube, video]`,
+    '---',
+  ].filter(Boolean);
+
+  const channelLink = data.channelUrl
+    ? `[${data.channel}](${data.channelUrl})`
+    : data.channel;
+
+  const meta = [
+    data.channel     && `**Channel:** ${channelLink}`,
+    data.duration    && `**Duration:** ${data.duration}`,
+    data.views       && `**Views:** ${data.views}`,
+    data.publishDate && `**Published:** ${data.publishDate}`,
+  ].filter(Boolean).join(' · ');
+
+  let content = `#Capture\n\n${fmLines.join('\n')}\n\n`;
+  content += `# ${data.title}\n\n`;
+  if (data.thumbnail) content += `![thumbnail](${data.thumbnail})\n\n`;
+  if (meta)           content += `${meta}\n\n`;
+  content += `[▶ Watch on YouTube](${data.url})\n\n---\n\n`;
+
+  if (summary) {
+    content += `## 🤖 AI Summary\n\n${summary}\n\n---\n\n`;
+  }
+
+  if (data.description) {
+    content += `## 📝 Description\n\n${data.description}\n\n---\n\n`;
+  }
+
+  content += `## Notes\n\n_Your notes here_\n`;
+  return content;
 }
 
 async function storeDirectoryHandle(handle) {

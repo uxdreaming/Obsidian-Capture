@@ -23,6 +23,21 @@
           </p>
         </div>
       </section>
+
+      <section class="settings-section">
+        <h2>AI Summary (YouTube)</h2>
+
+        <div class="setting-item">
+          <label for="groqApiKey">Groq API Key</label>
+          <input type="password" id="groqApiKey" placeholder="gsk_..." autocomplete="off" />
+          <button type="button" id="saveGroqKey" class="btn btn-primary">Save</button>
+          <p class="help-text">
+            Used to generate AI summaries when capturing YouTube videos.
+            Get a free key at <a href="https://console.groq.com" target="_blank">console.groq.com</a>.
+          </p>
+          <p id="groqStatus" class="help-text" style="display:none"></p>
+        </div>
+      </section>
     </main>
 
   </div>

@@ -9,14 +9,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const btn = document.getElementById('resetVault');
       btn.textContent = 'Vault changed!';
-      setTimeout(() => {
-        btn.textContent = 'Change Vault Folder';
-      }, 1500);
+      setTimeout(() => { btn.textContent = 'Change Vault Folder'; }, 1500);
     } catch (err) {
-      if (err.name !== 'AbortError') {
-        console.error('Error selecting folder:', err);
-      }
+      if (err.name !== 'AbortError') console.error('Error selecting folder:', err);
     }
+  });
+
+  // Load saved Groq API key
+  const { groqApiKey } = await chrome.storage.sync.get('groqApiKey');
+  if (groqApiKey) document.getElementById('groqApiKey').value = groqApiKey;
+
+  // Save Groq API key
+  document.getElementById('saveGroqKey').addEventListener('click', async () => {
+    const key   = document.getElementById('groqApiKey').value.trim();
+    const status = document.getElementById('groqStatus');
+    await chrome.storage.sync.set({ groqApiKey: key });
+    status.textContent = key ? '✓ API key saved' : 'API key cleared';
+    status.style.display = 'block';
+    setTimeout(() => { status.style.display = 'none'; }, 2000);
   });
 });
 
