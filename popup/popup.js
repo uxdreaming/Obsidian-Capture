@@ -242,7 +242,7 @@ async function captureYouTube(data) {
 }
 
 async function getGroqSummary(text, title, apiKey) {
-  console.log('[Obsidian Capture] Calling Groq for summary, input length:', text?.length);
+  console.log('[OC] Calling Groq, input length:', text?.length);
   try {
     const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -256,21 +256,45 @@ async function getGroqSummary(text, title, apiKey) {
         messages: [
           {
             role: 'system',
-            content: 'You are a concise YouTube video summarizer. Given video content, produce:\n1. A 2-3 sentence overview\n2. 5-7 key points as bullet points\nFormat in markdown. Be specific and informative. Do not add titles or headers — just the overview paragraph followed by the bullet list.',
+            content: `You are a knowledge extraction assistant for a personal knowledge base (Obsidian PKM).
+Given a YouTube video title and its content, extract structured knowledge in this exact markdown format:
+
+## 💡 De qué trata
+One or two sentences describing the core topic.
+
+## 🔑 Conceptos clave
+- concept 1
+- concept 2
+- concept 3
+
+## 🔗 Conecta con
+- [[Topic or idea this video relates to]]
+- [[Another connected concept]]
+- [[A field, discipline or tool mentioned]]
+
+## ✨ Takeaways
+- Specific actionable or memorable insight
+- Another insight
+
+Rules:
+- Write in the same language as the video content
+- For "Conecta con", use [[double brackets]] exactly — these become Obsidian links
+- Be specific and knowledge-focused, not generic
+- No extra headers or explanations outside this structure`,
           },
           {
             role: 'user',
-            content: `Video title: "${title}"\n\nContent:\n${text.substring(0, 6000)}`,
+            content: `Title: "${title}"\n\nContent:\n${text.substring(0, 6000)}`,
           },
         ],
       }),
     });
     const json = await resp.json();
     const result = json.choices?.[0]?.message?.content?.trim() || null;
-    console.log('[Obsidian Capture] Groq summary result:', result ? 'OK' : 'empty', json.error || '');
+    console.log('[OC] Groq result:', result ? 'OK' : 'empty/failed', json.error || '');
     return result;
   } catch (err) {
-    console.error('[Obsidian Capture] Groq error:', err);
+    console.error('[OC] Groq error:', err);
     return null;
   }
 }
@@ -278,35 +302,33 @@ async function getGroqSummary(text, title, apiKey) {
 function buildYouTubeNote(data, summary) {
   const date = new Date().toISOString().split('T')[0];
 
-  const fmLines = [
-    '---',
-    `title: "${data.title.replace(/"/g, '\\"')}"`,
-    `source: ${data.url}`,
-    `date: ${date}`,
-    `type: youtube`,
-    `tags: [youtube, video]`,
-    '---',
-  ];
-
   const channelLink = data.channelUrl
     ? `[${data.channel}](${data.channelUrl})`
-    : data.channel;
+    : data.channel || '';
 
-  const meta = [
-    data.channel     && `**Channel:** ${channelLink}`,
-    data.duration    && `**Duration:** ${data.duration}`,
-    data.views       && `**Views:** ${data.views}`,
-    data.publishDate && `**Published:** ${data.publishDate}`,
-  ].filter(Boolean).join(' · ');
+  let content = `#Capture\n\n`;
+  content += `---\n`;
+  content += `title: "${data.title.replace(/"/g, '\\"')}"\n`;
+  content += `source: ${data.url}\n`;
+  content += `date: ${date}\n`;
+  content += `type: youtube\n`;
+  content += `tags: [youtube, video]\n`;
+  content += `---\n\n`;
 
-  let content = `#Capture\n\n${fmLines.join('\n')}\n\n`;
   content += `# ${data.title}\n\n`;
+
   if (data.thumbnail) content += `![thumbnail](${data.thumbnail})\n\n`;
-  if (meta)           content += `${meta}\n\n`;
-  content += `[▶ Watch on YouTube](${data.url})\n\n---\n\n`;
+
+  const header = [
+    channelLink && `📺 ${channelLink}`,
+    `[▶ Watch on YouTube](${data.url})`,
+  ].filter(Boolean).join('  ·  ');
+  content += `${header}\n\n---\n\n`;
 
   if (summary) {
-    content += `## 🤖 AI Summary\n\n${summary}\n\n---\n\n`;
+    content += `${summary}\n\n---\n\n`;
+  } else {
+    content += `> ⚠️ AI summary not available — check Groq API key in extension settings.\n\n---\n\n`;
   }
 
   if (data.description) {
