@@ -720,7 +720,10 @@ async function extractYouTube() {
   const duration    = durationSec > 0
     ? ytFormatDuration(durationSec)
     : document.querySelector('.ytp-time-duration')?.textContent?.trim() || '';
-  const views       = ytFormatViews(videoDetails.viewCount);
+  const viewCountRaw = videoDetails.viewCount
+    || document.querySelector('ytd-video-view-count-renderer .view-count, #count .view-count')?.textContent?.replace(/[^0-9]/g, '')
+    || '0';
+  const views = ytFormatViews(viewCountRaw);
   const description = videoDetails.shortDescription
     || document.querySelector('#description-inline-expander yt-formatted-string, ytd-text-inline-expander yt-formatted-string')?.textContent?.trim()
     || '';

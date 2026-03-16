@@ -301,7 +301,7 @@ function buildYouTubeNote(data, summary) {
     content += `## 📝 Description\n\n${data.description}\n\n---\n\n`;
   }
 
-  content += `## Notes\n\n_Your notes here_\n`;
+  content += `## Notes\n`;
   return content;
 }
 
