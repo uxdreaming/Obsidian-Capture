@@ -218,27 +218,26 @@ async function checkVaultConfigured() {
 // ── YouTube capture ───────────────────────────────────────────────────────────
 
 async function captureYouTube(data) {
-  // Intentar sync primero, luego local (por si el usuario no tiene Chrome sync activo)
   let { groqApiKey } = await chrome.storage.sync.get('groqApiKey');
   if (!groqApiKey) {
     const local = await chrome.storage.local.get('groqApiKey');
     groqApiKey = local.groqApiKey;
   }
 
-  console.log('[OC] groqApiKey present:', !!groqApiKey);
-  console.log('[OC] transcript length:', data.transcript?.length ?? 'null');
-  console.log('[OC] description length:', data.description?.length ?? 'empty');
-
+  const input = data.transcript || data.description;
   let summary = null;
-  if (groqApiKey) {
-    const input = data.transcript || data.description;
-    console.log('[OC] input for summary:', input ? `${input.length} chars` : 'EMPTY — skipping');
-    if (input) summary = await getGroqSummary(input, data.title, groqApiKey);
+  let debugInfo = null;
+
+  if (!groqApiKey) {
+    debugInfo = 'no-key';
+  } else if (!input) {
+    debugInfo = 'no-input';
   } else {
-    console.warn('[OC] No Groq API key found — skipping summary');
+    summary = await getGroqSummary(input, data.title, groqApiKey);
+    if (!summary) debugInfo = 'groq-failed';
   }
 
-  return { filename: data.filename, content: buildYouTubeNote(data, summary) };
+  return { filename: data.filename, content: buildYouTubeNote(data, summary, debugInfo) };
 }
 
 async function getGroqSummary(text, title, apiKey) {
@@ -299,7 +298,7 @@ Rules:
   }
 }
 
-function buildYouTubeNote(data, summary) {
+function buildYouTubeNote(data, summary, debugInfo = null) {
   const date = new Date().toISOString().split('T')[0];
 
   const channelLink = data.channelUrl
@@ -328,7 +327,12 @@ function buildYouTubeNote(data, summary) {
   if (summary) {
     content += `${summary}\n\n---\n\n`;
   } else {
-    content += `> ⚠️ AI summary not available — check Groq API key in extension settings.\n\n---\n\n`;
+    const reason = {
+      'no-key':     'API key not found — go to extension Settings and save it again.',
+      'no-input':   'No transcript or description available for this video.',
+      'groq-failed':'Groq API call failed — the key might be invalid or there was a network error.',
+    }[debugInfo] || 'Unknown error.';
+    content += `> ⚠️ AI summary not available: ${reason}\n\n---\n\n`;
   }
 
   if (data.description) {
